@@ -3,7 +3,8 @@ import 'dart:async';
 import 'package:assets_audio_player/assets_audio_player.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:volume/volume.dart';
+import 'package:hardware_buttons/hardware_buttons.dart';
+import 'package:volume_watcher/volume_watcher.dart';
 
 class Logic extends ChangeNotifier {
   Animation<double> animation;
@@ -11,6 +12,14 @@ class Logic extends ChangeNotifier {
   AssetsAudioPlayer assetsAudioPlayer = AssetsAudioPlayer();
   ScrollController scrollController = ScrollController();
   bool isFirstTime = true;
+  bool isPlaying = false;
+  double sliderValue = 0;
+  int currentVolume;
+  var scaffoldKey = GlobalKey<ScaffoldState>();
+
+  Timer timer;
+  int timerValue = 0;
+
   List<String> assets = [
     '026.mp3',
     '031.mp3',
@@ -27,17 +36,25 @@ class Logic extends ChangeNotifier {
     '085.mp3',
     '088.mp3',
   ];
-
-  double sliderValue = 0;
-
+  bool rebuildListTile = false;
   Logic(TickerProvider tickerProvider) {
     animationController = AnimationController(
         vsync: tickerProvider, duration: Duration(milliseconds: 200));
     animation =
         Tween<double>(begin: 0.0, end: 1.0).animate(animationController);
-    Volume.controlVolume(AudioManager.STREAM_MUSIC);
+    volumeButtonEvents.listen((VolumeButtonEvent event) async {
+      var currentVolume = await VolumeWatcher.getCurrentVolume;
+      this.currentVolume = currentVolume;
+      notifyListeners();
+    });
 
     assetsAudioPlayer.playlistAudioFinished.listen((x) {
+      print('hello i am finished');
+      if (assetsAudioPlayer.playlist.currentIndex == assets.length - 1) {
+        assetsAudioPlayer.playlistPlayAtIndex(0);
+      }
+      rebuildListTile = !rebuildListTile;
+
       notifyListeners();
     });
 
@@ -45,28 +62,41 @@ class Logic extends ChangeNotifier {
       assets[i] = 'assets/${assets[i]}';
     }
     assetsAudioPlayer.openPlaylist(Playlist(assetAudioPaths: assets));
-
     assetsAudioPlayer.stop();
   }
 
-  void onTapListTile(int index) {
+  Future<void> onTapListTile(int index) async {
     if (this.isFirstTime) {
       isFirstTime = false;
     }
     if (this.animation.isDismissed) {
-      this.animationController.forward();
+      await this.animationController.forward();
     }
-
-    assetsAudioPlayer.stop();
     assetsAudioPlayer.playlistPlayAtIndex(index);
+
+    if (!isPlaying) isPlaying = true;
+    this.rebuildListTile = !rebuildListTile;
     notifyListeners();
   }
 
-  double get duration =>
+  String durationToString(Duration duration) {
+    String twoDigits(int n) {
+      if (n >= 10) return "$n";
+      return "0$n";
+    }
+
+    String twoDigitMinutes =
+        twoDigits(duration.inMinutes.remainder(Duration.minutesPerHour));
+    String twoDigitSeconds =
+        twoDigits(duration.inSeconds.remainder(Duration.secondsPerMinute));
+    return "$twoDigitMinutes:$twoDigitSeconds";
+  }
+
+  double get soundDuration =>
       assetsAudioPlayer.current.value?.duration?.inSeconds?.toDouble();
-  double value(Duration duration) =>
-      duration.inSeconds.toDouble() > this.duration
-          ? this.duration
+  double soundProgress(Duration duration) =>
+      duration.inSeconds.toDouble() > this.soundDuration
+          ? this.soundDuration
           : duration.inSeconds.toDouble();
   Color tileColor(int index) {
     return assetsAudioPlayer.playlist.currentIndex == index
@@ -80,51 +110,69 @@ class Logic extends ChangeNotifier {
 
   void onChangeSliderStart() {
     assetsAudioPlayer.pause();
+    this.isPlaying = true;
+    notifyListeners();
   }
 
-  void onChangeSliderEnd() {
+  Future<void> onChangeSliderEnd() async {
+    if (this.animation.isDismissed) {
+      await this.animationController.forward();
+    }
+
     assetsAudioPlayer.play();
+    this.isPlaying = true;
+
+    notifyListeners();
   }
 
-  void playPreviousAudioInList() {
+  Future<void> playPreviousAudioInList() async {
+    if (this.animation.isDismissed) {
+      await this.animationController.forward();
+    }
+
     if (assetsAudioPlayer.playlist.currentIndex == 0) {
       assetsAudioPlayer.playlistPlayAtIndex(assets.length - 1);
     } else {
       assetsAudioPlayer.playlistPrevious();
     }
+
+    this.isPlaying = true;
+
     notifyListeners();
   }
 
-  void playNextAudioInList() {
+  Future<void> playNextAudioInList() async {
+    if (this.animation.isDismissed) {
+      await this.animationController.forward();
+    }
+
     if (assetsAudioPlayer.playlist.currentIndex == assets.length - 1) {
       assetsAudioPlayer.playlistPlayAtIndex(0);
     } else {
       assetsAudioPlayer.playlistNext();
     }
+
+    this.isPlaying = true;
     notifyListeners();
   }
 
-  void playOrPause() {
+  Future<void> playOrPause() async {
+    if (this.animation.isCompleted) {
+      await this.animationController.reverse();
+    } else {
+      await this.animationController.forward();
+    }
     if (isFirstTime) {
       isFirstTime = false;
       assetsAudioPlayer.playlistPlayAtIndex(0);
     }
-
-    if (this.animation.isCompleted) {
-      this.animationController.reverse();
-    } else {
-      this.animationController.forward();
-    }
     assetsAudioPlayer.playOrPause();
+    isPlaying = !isPlaying;
+    notifyListeners();
   }
 
-  Timer timer;
-  int start;
-  int timerValue = 0;
-
-  var scaffoldKey = GlobalKey<ScaffoldState>();
   void onSelected(int selected) {
-    timerValue = selected;
+    timerValue = selected * 60;
     notifyListeners();
     scaffoldKey.currentState.showSnackBar(
         SnackBar(content: Text('App will close after $selected sec')));

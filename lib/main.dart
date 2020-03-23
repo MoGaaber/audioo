@@ -16,11 +16,9 @@ class AppRoot extends StatefulWidget {
 class _AppRootState extends State<AppRoot> with TickerProviderStateMixin {
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-        debugShowCheckedModeBanner: false,
-        home: ChangeNotifierProvider(
-          create: (ctx) => Logic(this),
-          child: Ui(),
-        ));
+    return ChangeNotifierProvider(
+      create: (ctx) => Logic(this),
+      child: MaterialApp(home: Ui()),
+    );
   }
 }
