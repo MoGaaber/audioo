@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:assets_audio_player/assets_audio_player.dart';
+import 'package:firebase_admob/firebase_admob.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:hardware_buttons/hardware_buttons.dart';
@@ -20,7 +21,7 @@ class Logic extends ChangeNotifier {
   List<bool> shouldRebuildTile;
   Timer timer;
   int timerValue = 0;
-
+  int count = 0;
   List<String> assets = [
     '1 (1).mp3',
     '1 (2).mp3',
@@ -31,21 +32,68 @@ class Logic extends ChangeNotifier {
     '1 (7).mp3',
     '1 (8).mp3',
     '1 (9).mp3',
-
-
   ];
+  Future<void> initAds() async {
+    await FirebaseAdMob.instance
+        .initialize(appId: 'ca-app-pub-4229060137718895~5541081383');
+    bannerAd = createBannerAd();
+    await bannerAd.load();
+    interstitialAd = createInterstitialAd();
+
+    await interstitialAd.load();
+  }
+
+  InterstitialAd interstitialAd;
+
+  InterstitialAd createInterstitialAd() {
+    return InterstitialAd(
+      adUnitId: "ca-app-pub-4229060137718895/1376467484",
+      listener: (MobileAdEvent event) {
+        if (event == MobileAdEvent.failedToLoad) {
+          interstitialAd?.dispose();
+          interstitialAd = createInterstitialAd();
+          interstitialAd.load();
+        }
+        if (event == MobileAdEvent.loaded) {
+          interstitialAd.show();
+        }
+
+        print(event);
+      },
+    );
+  }
+
+  BannerAd bannerAd;
+
+  BannerAd createBannerAd() {
+    return BannerAd(
+        adUnitId: 'ca-app-pub-4229060137718895/2531774660',
+        size: AdSize.banner,
+        listener: (MobileAdEvent event) async {
+          if (event == MobileAdEvent.loaded) {
+            bannerAd.show();
+          }
+          if (event == MobileAdEvent.failedToLoad) {
+            await bannerAd?.dispose();
+            bannerAd = createBannerAd();
+            bannerAd.load();
+          }
+        });
+  }
+
   bool rebuildListTile = false;
   Logic(TickerProvider tickerProvider) {
     animationController = AnimationController(
         vsync: tickerProvider, duration: Duration(milliseconds: 200));
     animation =
         Tween<double>(begin: 0.0, end: 1.0).animate(animationController);
+
     volumeButtonEvents.listen((VolumeButtonEvent event) async {
       var currentVolume = await VolumeWatcher.getCurrentVolume;
       this.currentVolume = currentVolume;
       notifyListeners();
     });
-
+    initAds();
     assetsAudioPlayer.playlistAudioFinished.listen((x) {
       print('hello i am finished');
       print(assetsAudioPlayer.playlist.currentIndex);
@@ -67,6 +115,13 @@ class Logic extends ChangeNotifier {
   }
 
   Future<void> onTapListTile(int index) async {
+
+    count++ ;
+    if(count%10==0){
+      interstitialAd?.dispose();
+      interstitialAd = createInterstitialAd();
+      interstitialAd.load();
+    }
     if (this.isFirstTime) {
       isFirstTime = false;
     }

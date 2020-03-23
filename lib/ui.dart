@@ -4,6 +4,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter_xlider/flutter_xlider.dart';
 import 'package:provider/provider.dart';
 import 'package:volume_watcher/volume_watcher.dart';
+import 'dart:math' as math;
 
 import 'logic.dart';
 
@@ -36,102 +37,103 @@ class Ui extends StatelessWidget {
         ),
         body: Column(
           children: <Widget>[
-            Expanded(
-              flex: 6,
-              child: Row(
-                children: <Widget>[
-                  Expanded(
-                    flex: 2,
-                    child: Selector<Logic, bool>(
-                      selector: (BuildContext, Logic logic) =>
-                          logic.showVolumeSlider,
-                      builder: (BuildContext context, bool isPlaying,
-                              Widget child) =>
-                          isPlaying
-                              ? Center(
-                                  child: SizedBox(
-                                    height: 150,
-                                    child: FutureProvider<List<num>>(
-                                      child: VolumeSlider(),
-                                      create: (BuildContext context) =>
-                                          Future.wait([
-                                        VolumeWatcher.getMaxVolume,
-                                        VolumeWatcher.getCurrentVolume
-                                      ]),
-                                    ),
-                                  ),
-                                )
-                              : SizedBox.shrink(),
+            Expanded(flex: 5,
+              child: ListView.separated(
+                controller: logic.scrollController,
+                itemCount: logic.assets.length,
+                itemBuilder: (BuildContext context, int index) {
+                  var asset = logic.assets[index];
+                  return Selector<Logic, bool>(
+                    builder: (BuildContext context, bool value,
+                            Widget child) =>
+                        Material(
+                          color: Colors.amber,
+                          child: ListTile(
+                      onTap: () {
+                          logic.onTapListTile(index);
+                      },
+                      title: Text(
+                          asset.substring(asset.indexOf('/') + 1,
+                              asset.lastIndexOf('.')),
+                          style: TextStyle(
+                              color: value ? Colors.blue : Colors.black,
+                              fontSize: 22),
+                          textAlign: TextAlign.right,
+                      ),
                     ),
-                  ),
-                  Expanded(
-                    flex: 8,
-                    child:    ListView.builder(
-                      controller: logic.scrollController,
-                      itemCount: logic.assets.length,
-                      itemBuilder: (BuildContext context, int index) 
-                        {
-                          var asset = logic.assets[index];  
-                          return Selector<Logic, bool>(
-                            builder: (BuildContext context, bool value,
-                                Widget child) =>
-                                ListTile(
-                                  onTap: () {
-                                    logic.onTapListTile(index);
-                                  },
-                                  title: Text(
-                                    asset.substring(asset.indexOf('/')+1,asset.lastIndexOf('.')),
-                                    style: TextStyle(
-                                        color: value? Colors.blue
-                                            : Colors.black, fontSize: 22),
-                                    textAlign: TextAlign.right,
-                                  ),
-                                ),
-                            selector: (BuildContext, Logic logic) =>
-                            logic.assetsAudioPlayer.playlist.currentIndex ==
-                                index,
-                          );},
-                    ),
-                  ),
-                ],
+                        ),
+                    selector: (BuildContext, Logic logic) =>
+                        logic.assetsAudioPlayer.playlist.currentIndex ==
+                        index,
+                  );
+                }, separatorBuilder: (BuildContext context, int index) =>Padding(padding: EdgeInsets.symmetric(vertical: 10)),
               ),
             ),
             Expanded(
               flex: 2,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
+              child: Stack(overflow: Overflow.visible,
                 children: <Widget>[
-                  StreamProvider<Duration>(
-                    initialData: Duration(seconds: 0),
-                    child: ProgressSlider(),
-                    create: (BuildContext context) =>
-                        logic.assetsAudioPlayer.currentPosition,
-                  ),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  Column(
+                    mainAxisSize: MainAxisSize.min,
                     children: <Widget>[
-                      IconButton(
-                        icon: Icon(
-                          Icons.skip_previous,
-                        ),
-                        onPressed: logic.playPreviousAudioInList,
+                      StreamProvider<Duration>(
+                        initialData: Duration(seconds: 0),
+                        child: ProgressSlider(),
+                        create: (BuildContext context) =>
+                            logic.assetsAudioPlayer.currentPosition,
                       ),
-                      InkWell(
-                        onTap: logic.playOrPause,
-                        child: AnimatedIcon(
-                          icon: AnimatedIcons.play_pause,
-                          progress: logic.animation,
-                        ),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: <Widget>[
+                          IconButton(
+                            icon: Icon(
+                              Icons.skip_previous,
+                            ),
+                            onPressed: logic.playPreviousAudioInList,
+                          ),
+                          InkWell(
+                            onTap: logic.playOrPause,
+                            child: AnimatedIcon(
+                              icon: AnimatedIcons.play_pause,
+                              progress: logic.animation,
+                            ),
+                          ),
+                          IconButton(
+                            icon: Icon(Icons.skip_next),
+                            onPressed: logic.playNextAudioInList,
+                          )
+                        ],
                       ),
-                      IconButton(
-                        icon: Icon(Icons.skip_next),
-                        onPressed: logic.playNextAudioInList,
-                      )
                     ],
+                  ),
+                  Positioned(left: 4,
+                    bottom: 50,
+                    child: Selector<Logic, bool>(
+                      selector: (BuildContext, Logic logic) =>
+                      logic.showVolumeSlider,
+                      builder: (BuildContext context, bool isPlaying,
+                          Widget child) =>
+                      isPlaying
+                          ? Center(
+                        child: SizedBox(
+                          height: 150,
+                          child: FutureProvider<List<num>>(
+                            child: VolumeSlider(),
+                            create: (BuildContext context) =>
+                                Future.wait([
+                                  VolumeWatcher.getMaxVolume,
+                                  VolumeWatcher.getCurrentVolume
+                                ]),
+                          ),
+                        ),
+                      )
+                          : SizedBox.shrink(),
+                    ),
                   ),
                 ],
               ),
             ),
+
           ],
         ),
       ),
@@ -142,12 +144,14 @@ class Ui extends StatelessWidget {
 class VolumeSlider extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
+
     var volumeProperties = Provider.of<List<num>>(context);
     return volumeProperties == null
         ? SizedBox.shrink()
         : Selector<Logic, int>(
             builder: (BuildContext context, int value, Widget child) =>
                 FlutterSlider(
+              rtl: true,
               min: 0,
               max: volumeProperties[0].toDouble(),
               onDragging: (x, y, z) {
@@ -176,9 +180,12 @@ class ProgressSlider extends StatelessWidget {
               logic.assetsAudioPlayer.current.value == null
           ? Column(
               children: <Widget>[
-                Slider(
-                  value: 0,
-                  onChanged: (x) {},
+                FractionallySizedBox(
+      widthFactor: 0.8 ,
+                  child: Slider(
+                    value: 0,
+                    onChanged: (x) {},
+                  ),
                 ),
                 Align(
                   child: Text('00:00 - 00:00'),
@@ -189,19 +196,21 @@ class ProgressSlider extends StatelessWidget {
           : Column(
               mainAxisSize: MainAxisSize.min,
               children: <Widget>[
-                Slider(
-                    min: 0,
-                    max: logic
-                        .assetsAudioPlayer.current.value.duration.inSeconds
-                        .toDouble(),
-                    value: logic.soundProgress(currentPosition),
-                    onChangeStart: (x) {
-                      logic.onChangeSliderStart(x);
-                    },
-                    onChangeEnd: (x) {
-                      logic.onChangeSliderEnd(x);
-                    },
-                    onChanged: logic.onChangeSlider),
+                FractionallySizedBox(widthFactor: 0.8,
+                  child: Slider(
+                      min: 0,
+                      max: logic
+                          .assetsAudioPlayer.current.value.duration.inSeconds
+                          .toDouble(),
+                      value: logic.soundProgress(currentPosition),
+                      onChangeStart: (x) {
+                        logic.onChangeSliderStart(x);
+                      },
+                      onChangeEnd: (x) {
+                        logic.onChangeSliderEnd(x);
+                      },
+                      onChanged: logic.onChangeSlider),
+                ),
                 Align(
                   child: Selector<Logic, Duration>(
                     builder: (BuildContext context, Duration soundDuration,
