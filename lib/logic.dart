@@ -240,7 +240,7 @@ void cancelTimer(){
               Icons.close,
               color: Colors.white,
             ),
-            onPressed: cancelTimer;
+            onPressed: cancelTimer);
       } else {
         return PopupMenuButton<int>(
           color: Colors.white,
