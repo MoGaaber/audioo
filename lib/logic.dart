@@ -22,20 +22,17 @@ class Logic extends ChangeNotifier {
   int timerValue = 0;
 
   List<String> assets = [
-    '026.mp3',
-    '031.mp3',
-    '032.mp3',
-    '044.mp3',
-    '050.mp3',
-    '053.mp3',
-    '059.mp3',
-    '066.mp3',
-    '067.mp3',
-    '068.mp3',
-    '072.mp3',
-    '079.mp3',
-    '085.mp3',
-    '088.mp3',
+    '1 (1).mp3',
+    '1 (2).mp3',
+    '1 (3).mp3',
+    '1 (4).mp3',
+    '1 (5).mp3',
+    '1 (6).mp3',
+    '1 (7).mp3',
+    '1 (8).mp3',
+    '1 (9).mp3',
+
+
   ];
   bool rebuildListTile = false;
   Logic(TickerProvider tickerProvider) {

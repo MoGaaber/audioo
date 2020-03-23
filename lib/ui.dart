@@ -8,17 +8,11 @@ import 'package:volume_watcher/volume_watcher.dart';
 import 'logic.dart';
 
 class Ui extends StatelessWidget {
-  var volume = 0.0;
   @override
   Widget build(BuildContext context) {
     Logic logic = Provider.of(context, listen: false);
-
     return SafeArea(
       child: Scaffold(
-        floatingActionButton: FloatingActionButton(onPressed: () {
-          logic.assetsAudioPlayer.playlistPlayAtIndex(0);
-          logic.assetsAudioPlayer.seek(Duration(seconds: 120));
-        }),
         key: logic.scaffoldKey,
         appBar: PreferredSize(
           preferredSize: Size.fromHeight(80),
@@ -47,29 +41,6 @@ class Ui extends StatelessWidget {
               child: Row(
                 children: <Widget>[
                   Expanded(
-                    flex: 8,
-                    child: Selector<Logic, bool>(
-                      selector: (BuildContext, Logic logic) =>
-                          logic.rebuildListTile,
-                      builder:
-                          (BuildContext context, bool value, Widget child) =>
-                              ListView.builder(
-                        controller: logic.scrollController,
-                        itemCount: logic.assets.length,
-                        itemBuilder: (BuildContext context, int index) =>
-                            ListTile(
-                          onTap: () {
-                            logic.onTapListTile(index);
-                          },
-                          title: Text(
-                            logic.assets[index],
-                            style: TextStyle(color: logic.tileColor(index)),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  Expanded(
                     flex: 2,
                     child: Selector<Logic, bool>(
                       selector: (BuildContext, Logic logic) =>
@@ -79,7 +50,7 @@ class Ui extends StatelessWidget {
                           isPlaying
                               ? Center(
                                   child: SizedBox(
-                                    height: 300,
+                                    height: 150,
                                     child: FutureProvider<List<num>>(
                                       child: VolumeSlider(),
                                       create: (BuildContext context) =>
@@ -92,7 +63,36 @@ class Ui extends StatelessWidget {
                                 )
                               : SizedBox.shrink(),
                     ),
-                  )
+                  ),
+                  Expanded(
+                    flex: 8,
+                    child:    ListView.builder(
+                      controller: logic.scrollController,
+                      itemCount: logic.assets.length,
+                      itemBuilder: (BuildContext context, int index) 
+                        {
+                          var asset = logic.assets[index];  
+                          return Selector<Logic, bool>(
+                            builder: (BuildContext context, bool value,
+                                Widget child) =>
+                                ListTile(
+                                  onTap: () {
+                                    logic.onTapListTile(index);
+                                  },
+                                  title: Text(
+                                    asset.substring(asset.indexOf('/')+1,asset.lastIndexOf('.')),
+                                    style: TextStyle(
+                                        color: value? Colors.blue
+                                            : Colors.black, fontSize: 22),
+                                    textAlign: TextAlign.right,
+                                  ),
+                                ),
+                            selector: (BuildContext, Logic logic) =>
+                            logic.assetsAudioPlayer.playlist.currentIndex ==
+                                index,
+                          );},
+                    ),
+                  ),
                 ],
               ),
             ),
