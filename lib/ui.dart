@@ -15,6 +15,10 @@ class Ui extends StatelessWidget {
 
     return SafeArea(
       child: Scaffold(
+        floatingActionButton: FloatingActionButton(onPressed: () {
+          logic.assetsAudioPlayer.playlistPlayAtIndex(0);
+          logic.assetsAudioPlayer.seek(Duration(seconds: 120));
+        }),
         key: logic.scaffoldKey,
         appBar: PreferredSize(
           preferredSize: Size.fromHeight(80),
@@ -30,27 +34,7 @@ class Ui extends StatelessWidget {
                           logic.timerValue.toString(),
                           style: TextStyle(color: Colors.white),
                         ),
-                  trailing: Builder(
-                    builder: (BuildContext ctx) => PopupMenuButton<int>(
-                      color: Colors.white,
-                      onSelected: logic.onSelected,
-                      child: Icon(
-                        Icons.snooze,
-                        color: Colors.white,
-                      ),
-                      itemBuilder: (BuildContext context) {
-                        return [
-                          //  PopupMenuItem(value: 0, child: Text('now')),
-                          PopupMenuItem(
-                              value: 5, child: Text('5 min')), // هنا لخمس دقايق
-                          PopupMenuItem(
-                              value: 10,
-                              child: Text('10 min')), //هنا لعشره وهكذا
-                          PopupMenuItem(value: 15, child: Text('15 min'))
-                        ];
-                      },
-                    ),
-                  ),
+                  trailing: logic.trailling(),
                 );
               },
             ),
@@ -64,14 +48,16 @@ class Ui extends StatelessWidget {
                 children: <Widget>[
                   Expanded(
                     flex: 8,
-                    child: ListView.builder(
-                      controller: logic.scrollController,
-                      itemCount: logic.assets.length,
-                      itemBuilder: (BuildContext context, int index) =>
-                          Selector<Logic, bool>(
-                        builder:
-                            (BuildContext context, bool value, Widget child) =>
-                                ListTile(
+                    child: Selector<Logic, bool>(
+                      selector: (BuildContext, Logic logic) =>
+                          logic.rebuildListTile,
+                      builder:
+                          (BuildContext context, bool value, Widget child) =>
+                              ListView.builder(
+                        controller: logic.scrollController,
+                        itemCount: logic.assets.length,
+                        itemBuilder: (BuildContext context, int index) =>
+                            ListTile(
                           onTap: () {
                             logic.onTapListTile(index);
                           },
@@ -80,15 +66,14 @@ class Ui extends StatelessWidget {
                             style: TextStyle(color: logic.tileColor(index)),
                           ),
                         ),
-                        selector: (BuildContext, Logic logic) =>
-                            logic.rebuildListTile,
                       ),
                     ),
                   ),
                   Expanded(
                     flex: 2,
                     child: Selector<Logic, bool>(
-                      selector: (BuildContext, Logic logic) => logic.isPlaying,
+                      selector: (BuildContext, Logic logic) =>
+                          logic.showVolumeSlider,
                       builder: (BuildContext context, bool isPlaying,
                               Widget child) =>
                           isPlaying
@@ -185,6 +170,7 @@ class ProgressSlider extends StatelessWidget {
   Widget build(BuildContext context) {
     Logic logic = Provider.of<Logic>(context, listen: false);
     Duration currentPosition = Provider.of<Duration>(context, listen: true);
+    print(currentPosition.toString());
     return Builder(
       builder: (BuildContext context) => currentPosition == null ||
               logic.assetsAudioPlayer.current.value == null
@@ -195,7 +181,7 @@ class ProgressSlider extends StatelessWidget {
                   onChanged: (x) {},
                 ),
                 Align(
-                  child: Text('00:00'),
+                  child: Text('00:00 - 00:00'),
                   alignment: Alignment(0.8, 0),
                 )
               ],
@@ -208,12 +194,12 @@ class ProgressSlider extends StatelessWidget {
                     max: logic
                         .assetsAudioPlayer.current.value.duration.inSeconds
                         .toDouble(),
-                    value: currentPosition?.inSeconds?.toDouble(),
+                    value: logic.soundProgress(currentPosition),
                     onChangeStart: (x) {
-                      logic.onChangeSliderStart();
+                      logic.onChangeSliderStart(x);
                     },
                     onChangeEnd: (x) {
-                      logic.onChangeSliderEnd();
+                      logic.onChangeSliderEnd(x);
                     },
                     onChanged: logic.onChangeSlider),
                 Align(
@@ -221,7 +207,7 @@ class ProgressSlider extends StatelessWidget {
                     builder: (BuildContext context, Duration soundDuration,
                             Widget child) =>
                         Text(
-                            '${logic.durationToString(currentPosition)} - ${logic.durationToString(soundDuration)}'),
+                            '${logic.soundDuration < currentPosition.inSeconds ? logic.durationToString(soundDuration) : logic.durationToString(currentPosition)} - ${logic.durationToString(soundDuration)}'),
                     selector: (BuildContext, Logic logic) =>
                         logic.assetsAudioPlayer.current.value.duration,
                   ),

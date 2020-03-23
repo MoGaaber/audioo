@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:assets_audio_player/assets_audio_player.dart';
 import 'package:flutter/foundation.dart';
@@ -12,11 +13,11 @@ class Logic extends ChangeNotifier {
   AssetsAudioPlayer assetsAudioPlayer = AssetsAudioPlayer();
   ScrollController scrollController = ScrollController();
   bool isFirstTime = true;
-  bool isPlaying = false;
+  bool showVolumeSlider = false;
   double sliderValue = 0;
   int currentVolume;
   var scaffoldKey = GlobalKey<ScaffoldState>();
-
+  List<bool> shouldRebuildTile;
   Timer timer;
   int timerValue = 0;
 
@@ -50,7 +51,9 @@ class Logic extends ChangeNotifier {
 
     assetsAudioPlayer.playlistAudioFinished.listen((x) {
       print('hello i am finished');
-      if (assetsAudioPlayer.playlist.currentIndex == assets.length - 1) {
+      print(assetsAudioPlayer.playlist.currentIndex);
+      print(assets.length);
+      if (assetsAudioPlayer.playlist.currentIndex == assets.length) {
         assetsAudioPlayer.playlistPlayAtIndex(0);
       }
       rebuildListTile = !rebuildListTile;
@@ -61,6 +64,7 @@ class Logic extends ChangeNotifier {
     for (int i = 0; i < assets.length; i++) {
       assets[i] = 'assets/${assets[i]}';
     }
+    shouldRebuildTile = List.filled(assets.length, false);
     assetsAudioPlayer.openPlaylist(Playlist(assetAudioPaths: assets));
     assetsAudioPlayer.stop();
   }
@@ -74,7 +78,7 @@ class Logic extends ChangeNotifier {
     }
     assetsAudioPlayer.playlistPlayAtIndex(index);
 
-    if (!isPlaying) isPlaying = true;
+    if (!showVolumeSlider) showVolumeSlider = true;
     this.rebuildListTile = !rebuildListTile;
     notifyListeners();
   }
@@ -94,10 +98,10 @@ class Logic extends ChangeNotifier {
 
   double get soundDuration =>
       assetsAudioPlayer.current.value?.duration?.inSeconds?.toDouble();
-  double soundProgress(Duration duration) =>
-      duration.inSeconds.toDouble() > this.soundDuration
+  double soundProgress(Duration currentPosition) =>
+      currentPosition.inSeconds.toDouble() > this.soundDuration
           ? this.soundDuration
-          : duration.inSeconds.toDouble();
+          : currentPosition.inSeconds.toDouble();
   Color tileColor(int index) {
     return assetsAudioPlayer.playlist.currentIndex == index
         ? Colors.blue
@@ -108,20 +112,24 @@ class Logic extends ChangeNotifier {
     assetsAudioPlayer.seek(Duration(seconds: x.toInt()));
   }
 
-  void onChangeSliderStart() {
-    assetsAudioPlayer.pause();
-    this.isPlaying = true;
-    notifyListeners();
+  void onChangeSliderStart(double x) {
+    print(x.toString() + 'start');
+    if (!isFirstTime) {
+      assetsAudioPlayer.pause();
+    } else {
+      this.isFirstTime = false;
+      assetsAudioPlayer.playlistPlayAtIndex(0);
+
+      notifyListeners();
+    }
   }
 
-  Future<void> onChangeSliderEnd() async {
+  Future<void> onChangeSliderEnd(double x) async {
     if (this.animation.isDismissed) {
       await this.animationController.forward();
     }
-
     assetsAudioPlayer.play();
-    this.isPlaying = true;
-
+    this.showVolumeSlider = true;
     notifyListeners();
   }
 
@@ -136,7 +144,8 @@ class Logic extends ChangeNotifier {
       assetsAudioPlayer.playlistPrevious();
     }
 
-    this.isPlaying = true;
+    this.showVolumeSlider = true;
+    this.rebuildListTile = !rebuildListTile;
 
     notifyListeners();
   }
@@ -152,7 +161,8 @@ class Logic extends ChangeNotifier {
       assetsAudioPlayer.playlistNext();
     }
 
-    this.isPlaying = true;
+    this.showVolumeSlider = true;
+    this.rebuildListTile = !rebuildListTile;
     notifyListeners();
   }
 
@@ -167,7 +177,7 @@ class Logic extends ChangeNotifier {
       assetsAudioPlayer.playlistPlayAtIndex(0);
     }
     assetsAudioPlayer.playOrPause();
-    isPlaying = !isPlaying;
+    showVolumeSlider = !showVolumeSlider;
     notifyListeners();
   }
 
@@ -189,11 +199,65 @@ class Logic extends ChangeNotifier {
       (Timer timer) {
         if (timerValue < 1) {
           timer.cancel();
+          exit(0);
         } else {
           this.timerValue = this.timerValue - 1;
           notifyListeners();
         }
       },
     );
+  }
+
+  Widget trailling() {
+    if (timer == null) {
+      return PopupMenuButton<int>(
+        color: Colors.white,
+        onSelected: onSelected,
+        child: Icon(
+          Icons.snooze,
+          color: Colors.white,
+        ),
+        itemBuilder: (BuildContext context) {
+          return [
+            //  PopupMenuItem(value: 0, child: Text('now')),
+            PopupMenuItem(value: 5, child: Text('5 min')), // هنا لخمس دقايق
+            PopupMenuItem(value: 10, child: Text('10 min')), //هنا لعشره وهكذا
+            PopupMenuItem(value: 15, child: Text('15 min'))
+          ];
+        },
+      );
+    } else {
+      if (timer.isActive) {
+        return IconButton(
+            icon: Icon(
+              Icons.close,
+              color: Colors.white,
+            ),
+            onPressed: () {
+              timer.cancel();
+              timerValue = 0;
+              notifyListeners();
+              scaffoldKey.currentState.showSnackBar(
+                  SnackBar(content: Text('Timer was succeffully canceled')));
+            });
+      } else {
+        return PopupMenuButton<int>(
+          color: Colors.white,
+          onSelected: onSelected,
+          child: Icon(
+            Icons.snooze,
+            color: Colors.white,
+          ),
+          itemBuilder: (BuildContext context) {
+            return [
+              //  PopupMenuItem(value: 0, child: Text('now')),
+              PopupMenuItem(value: 5, child: Text('5 min')), // هنا لخمس دقايق
+              PopupMenuItem(value: 10, child: Text('10 min')), //هنا لعشره وهكذا
+              PopupMenuItem(value: 15, child: Text('15 min'))
+            ];
+          },
+        );
+      }
+    }
   }
 }
