@@ -207,14 +207,15 @@ class Logic extends ChangeNotifier {
       },
     );
   }
-void cancelTimer(){
-  timer.cancel();
-  timerValue = 0;
-  notifyListeners();
-  scaffoldKey.currentState.showSnackBar(
-      SnackBar(content: Text('Timer was succeffully canceled')));
 
-}
+  void cancelTimer() {
+    timer.cancel();
+    timerValue = 0;
+    notifyListeners();
+    scaffoldKey.currentState.showSnackBar(
+        SnackBar(content: Text('Timer was succeffully canceled')));
+  }
+
   Widget trailling() {
     if (timer == null) {
       return PopupMenuButton<int>(
